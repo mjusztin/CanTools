@@ -1,9 +1,5 @@
-# canDrive
-Tools for hacking your car. Please concider checking out the tutorials made about this project:
-https://www.youtube.com/playlist?list=PLNiFaO8hU1z0o_6DSxk-jcVAM3UCUR-pY
-
-I've created this google sheet, so everybody can freely add their decoded IDs and packets, so it's easier for the community to collaborate:
-https://docs.google.com/spreadsheets/d/1eBKiTwEE6aPnfw2EfSHItLeMz00fJq0Y0L99Ym7fKwU/edit?usp=sharing
+# CanTools
+This is a forked version of Adam Varga's canDrive repository. Modified to handle the signals of a 2014-2018 Mazda3 and control led strips based on the car's state.
 
 # Content
 - 01_canSniffer_Arduino: This code runs on your arduino sniffer device and creates an interface between the car and the GUI.
@@ -31,8 +27,3 @@ Altium Designer projects for the hardware projects. Currently version 2. The mod
 
 ### 04_canSniffer_FW
 (BETA) Only board1 beta firmware is uploaded yet. It is a STM32CubeIDE project for the STM32F413. To be uploaded: nRF project for board2.
-
-# To be uploaded
-- Final version of the firmware.
-- (at some point) Source code for the mobile application that is compatible with the v2 hardware.
-- (potentially) New versions of the hardware module.
