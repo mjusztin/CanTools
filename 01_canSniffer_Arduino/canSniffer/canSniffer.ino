@@ -21,7 +21,7 @@
 #include <CAN.h>
 //------------------------------------------------------------------------------
 // Settings
-#define RANDOM_CAN 1
+#define RANDOM_CAN 0
 #define CAN_SPEED (500E3) //LOW=33E3, MID=95E3, HIGH=500E3 (for Vectra)
 //------------------------------------------------------------------------------
 // Inits, globals
@@ -36,6 +36,13 @@ typedef struct {
 const char SEPARATOR = ',';
 const char TERMINATOR = '\n';
 const char RXBUF_LEN = 100;
+
+bool driver_front    = false;
+bool passenger_front = false;
+bool driver_rear     = false;
+bool passenger_rear  = false;
+bool trunk           = false;
+
 //------------------------------------------------------------------------------
 // Printing a packet to serial
 void printHex(long num) {
@@ -98,7 +105,10 @@ void onCANReceive(int packetSize) {
       break;
     }
   }
-  printPacket(&rxPacket);
+  //printPacket(&rxPacket);
+
+  filterMessage(rxPacket.id, rxPacket.dataArray);
+
 }
 
 void sendPacketToCan(packet_t * packet) {
@@ -167,6 +177,25 @@ void rxParse(char * buf, int len) {
 #endif
 }
 
+void filterMessage(uint32_t id, uint8_t* data) {
+    switch (id) {
+        case 0x43E:
+            driver_front    = (data[4] & 0x20) != 0;
+            passenger_front = (data[4] & 0x10) != 0;
+            driver_rear     = (data[4] & 0x08) != 0;
+            passenger_rear  = (data[4] & 0x04) != 0;
+            trunk           = (data[4] & 0x01) != 0;
+            break;
+
+        // további ID-k ide kerülnek majd
+        // case 0xXXX:
+        //     break;
+
+        default:
+            break;
+    }
+}
+
 void RXcallback(void) {
   static int rxPtr = 0;
   static char rxBuf[RXBUF_LEN];
@@ -182,6 +211,40 @@ void RXcallback(void) {
       rxPtr = 0;
     }
   }
+}
+
+bool prev_driver_front    = false;
+bool prev_passenger_front = false;
+bool prev_driver_rear     = false;
+bool prev_passenger_rear  = false;
+bool prev_trunk           = false;
+
+void logDoorChanges() {
+    if (driver_front != prev_driver_front) {
+        Serial.print("Vezeto elso: ");
+        Serial.println(driver_front ? "NYITVA" : "CSUKVA");
+        prev_driver_front = driver_front;
+    }
+    if (passenger_front != prev_passenger_front) {
+        Serial.print("Anyos elso: ");
+        Serial.println(passenger_front ? "NYITVA" : "CSUKVA");
+        prev_passenger_front = passenger_front;
+    }
+    if (driver_rear != prev_driver_rear) {
+        Serial.print("Vezeto hatso: ");
+        Serial.println(driver_rear ? "NYITVA" : "CSUKVA");
+        prev_driver_rear = driver_rear;
+    }
+    if (passenger_rear != prev_passenger_rear) {
+        Serial.print("Anyos hatso: ");
+        Serial.println(passenger_rear ? "NYITVA" : "CSUKVA");
+        prev_passenger_rear = passenger_rear;
+    }
+    if (trunk != prev_trunk) {
+        Serial.print("Csomagter: ");
+        Serial.println(trunk ? "NYITVA" : "CSUKVA");
+        prev_trunk = trunk;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -209,6 +272,7 @@ void setup() {
 // Main
 void loop() {
   RXcallback();
+  logDoorChanges();
 #if RANDOM_CAN == 1
   CANsimulate();
   delay(100);
