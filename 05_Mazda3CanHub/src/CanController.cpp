@@ -59,6 +59,7 @@ void CanController::onCANReceive(int packetSize) {
         if (i >= sizeof(rxPacket.dataArray) / sizeof(rxPacket.dataArray[0])) break;
     }
     _instance->filterMessage(rxPacket.id, rxPacket.dataArray);
+    //_instance->printPacket(&rxPacket);
 }
 
 void CanController::sendPacketToCan(packet_t* packet) {

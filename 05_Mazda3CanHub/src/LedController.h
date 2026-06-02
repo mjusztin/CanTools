@@ -16,6 +16,11 @@
 #define LED_COUNT_DRIVER_SIDE_TOTAL    (LED_COUNT_DRIVER_SIDE_LEG_SPACE    + LED_COUNT_DOOR_INSIDE + LED_COUNT_UNDER_DOOR)
 #define LED_COUNT_PASSENGER_SIDE_TOTAL (LED_COUNT_PASSENGER_SIDE_LEG_SPACE + LED_COUNT_DOOR_INSIDE + LED_COUNT_UNDER_DOOR)
 
+struct SideAnimState {
+    bool active = false;
+    unsigned long startMs = 0;
+};
+
 class LedController {
 public:
     LedController();
@@ -25,6 +30,9 @@ public:
 private:
     CRGB _driverLeds[LED_COUNT_DRIVER_SIDE_TOTAL];
     CRGB _passengerLeds[LED_COUNT_PASSENGER_SIDE_TOTAL];
+    DoorState _prevDoors;
+    SideAnimState _driverAnim;
+    SideAnimState _passengerAnim;
 
-    void updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen);
+    void updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim);
 };
