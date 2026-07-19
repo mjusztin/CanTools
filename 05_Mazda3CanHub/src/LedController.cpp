@@ -14,7 +14,14 @@ void LedController::begin() {
     FastLED.show();
 }
 
-void LedController::update(const DoorState& doors) {
+void LedController::update(const DoorState& doors, bool isDark) {
+    if (!isDark) {
+        FastLED.clear();
+        FastLED.show();
+        _prevDoors = doors;
+        return;
+    }
+
     if (_prevDoors.driver_front && !doors.driver_front) {
         _driverAnim.active = true;
         _driverAnim.startMs = millis();

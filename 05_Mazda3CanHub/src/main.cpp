@@ -27,5 +27,5 @@ void setup() {
 
 void loop() {
     canCtrl.update();
-    ledCtrl.update(canCtrl.doors);
+    ledCtrl.update(canCtrl.doors, canCtrl.isDark);
 }

@@ -20,6 +20,7 @@ public:
     void update();
 
     DoorState doors;
+    bool isDark = true; // There is no light sensor signal when the ignition is off, so in this case we assume it is dark
 
 private:
     DoorState _prevDoors;

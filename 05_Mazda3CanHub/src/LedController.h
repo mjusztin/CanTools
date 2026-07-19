@@ -25,7 +25,7 @@ class LedController {
 public:
     LedController();
     void begin();
-    void update(const DoorState& doors);
+    void update(const DoorState& doors, bool isDark);
 
 private:
     CRGB _driverLeds[LED_COUNT_DRIVER_SIDE_TOTAL];

@@ -136,6 +136,9 @@ void CanController::rxCallback() {
 // CAN message decoder
 void CanController::filterMessage(uint32_t id, uint8_t* data) {
     switch (id) {
+        case 0x09A:
+            isDark = (data[0] == 0x30);
+            break;
         case 0x43E:
             doors.any_door_open = (data[3] == 0x60);
             doors.doors_recently_closed = (data[3] == 0x40);
