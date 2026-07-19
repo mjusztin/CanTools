@@ -1,8 +1,7 @@
 #include "LedController.h"
 
-static const CRGB COLOR_ON   = CRGB(255, 0, 0);
-static const CRGB COLOR_OFF  = CRGB::Black;
-static const CRGB COLOR_ANIM = CRGB(255, 0, 0);
+static const CRGB COLOR_ON  = CRGB(255, 0, 0);
+static const CRGB COLOR_OFF = CRGB::Black;
 
 LedController::LedController() {}
 
@@ -38,20 +37,23 @@ void LedController::update(const DoorState& doors, bool isDark) {
 }
 
 void LedController::updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim) {
-    int animPos = -1;
+    uint8_t legBrightness = 255;
+
     if (anim.active) {
         unsigned long elapsed = millis() - anim.startMs;
-        if (elapsed >= 2000) {
+        if (elapsed >= 3000) {
             anim.active = false;
-        } else if (elapsed < 1000) {
-            animPos = legSpaceLedCount - 1 - (int)((elapsed * legSpaceLedCount) / 1000);
         } else {
-            animPos = static_cast<int>(((elapsed - 1000) * legSpaceLedCount) / 1000);
+            unsigned long cycleMs = elapsed % 1000;
+            legBrightness = cycleMs < 500
+                ? (uint8_t)((cycleMs * 255UL) / 500)
+                : (uint8_t)(((1000UL - cycleMs) * 255UL) / 500);
         }
     }
 
     for (int i = 0; i < legSpaceLedCount; i++) {
-        leds[i] = (animPos >= 0) ? (i == animPos ? COLOR_ANIM : COLOR_OFF) : COLOR_ON;
+        leds[i] = COLOR_ON;
+        leds[i].nscale8(legBrightness);
     }
     for (int i = legSpaceLedCount; i < legSpaceLedCount + LED_COUNT_DOOR_INSIDE; i++) {
         leds[i] = COLOR_ON;
