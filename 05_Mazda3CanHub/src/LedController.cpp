@@ -14,7 +14,8 @@ void LedController::begin() {
 }
 
 void LedController::update(const DoorState& doors, bool isDark) {
-    if (!isDark) {
+    bool lightsEnabled = doors.any_door_open || doors.doors_recently_closed || isDark;
+    if (!lightsEnabled) {
         FastLED.clear();
         FastLED.show();
         _prevDoors = doors;
