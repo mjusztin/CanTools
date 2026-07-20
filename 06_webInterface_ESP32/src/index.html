@@ -6,25 +6,151 @@ R"rawliteral(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LED Color</title>
 <style>
-  body { font-family: sans-serif; text-align:center; background:#111; color:#eee; padding-top:40px; }
-  input[type=color] { width:200px; height:120px; border:none; background:none; }
-  #status { margin-top:20px; font-size:14px; color:#8f8; min-height:1.2em; }
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background: #111;
+    color: #eee;
+    padding-top: 30px;
+  }
+  #wrap {
+    width: min(320px, 90vw);
+    margin: 0 auto;
+  }
+  h2 { margin-bottom: 20px; }
+
+  #hueBar {
+    position: relative;
+    width: 100%;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(to right,
+      #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    touch-action: none;
+    cursor: pointer;
+  }
+  #hueCursor {
+    position: absolute;
+    top: -3px;
+    width: 6px;
+    height: 34px;
+    background: #fff;
+    border: 1px solid #000;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    box-shadow: 0 0 3px rgba(0,0,0,0.8);
+  }
+
+  #svBox {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    margin-top: 16px;
+    border-radius: 6px;
+    touch-action: none;
+    cursor: pointer;
+  }
+  #svCursor {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 0 3px rgba(0,0,0,0.8);
+  }
+
+  #preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  #swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid #555;
+  }
+  #hexLabel { font-family: monospace; font-size: 16px; }
+
+  #status { margin-top: 16px; font-size: 14px; color: #8f8; min-height: 1.2em; }
 </style>
 </head>
 <body>
   <h2>Door LED Color</h2>
-  <input type="color" id="picker" value="#ff0000">
+  <div id="wrap">
+    <div id="hueBar"><div id="hueCursor"></div></div>
+    <div id="svBox"><div id="svCursor"></div></div>
+    <div id="preview">
+      <div id="swatch"></div>
+      <span id="hexLabel">#ff0000</span>
+    </div>
+  </div>
   <div id="status"></div>
+
 <script>
-  const picker = document.getElementById('picker');
+  const hueBar = document.getElementById('hueBar');
+  const hueCursor = document.getElementById('hueCursor');
+  const svBox = document.getElementById('svBox');
+  const svCursor = document.getElementById('svCursor');
+  const swatch = document.getElementById('swatch');
+  const hexLabel = document.getElementById('hexLabel');
   const status = document.getElementById('status');
+
+  let hue = 0, sat = 1, val = 1; // hue: 0-360, sat/val: 0-1
   let pending = false, queued = null;
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function hsvToRgb(h, s, v) {
+    h = h / 360;
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+    let r, g, b;
+    switch (i % 6) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      default: r = v; g = p; b = q; break;
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  function toHex(n) { return n.toString(16).padStart(2, '0'); }
+
+  function render() {
+    svBox.style.background =
+      'linear-gradient(to top, #000, transparent), ' +
+      'linear-gradient(to right, #fff, hsl(' + hue + ',100%,50%))';
+
+    const svRect = svBox.getBoundingClientRect();
+    svCursor.style.left = (sat * svRect.width) + 'px';
+    svCursor.style.top = ((1 - val) * svRect.height) + 'px';
+
+    const hueRect = hueBar.getBoundingClientRect();
+    hueCursor.style.left = ((hue / 360) * hueRect.width) + 'px';
+
+    const [r, g, b] = hsvToRgb(hue, sat, val);
+    const hex = toHex(r) + toHex(g) + toHex(b);
+    swatch.style.background = '#' + hex;
+    hexLabel.textContent = '#' + hex;
+    return hex;
+  }
 
   function send(hex) {
     if (pending) { queued = hex; return; }
     pending = true;
-    fetch('/setColor?hex=' + hex.substring(1))
-      .then(r => { status.textContent = 'Sent ' + hex; })
+    fetch('/setColor?hex=' + hex)
+      .then(() => { status.textContent = 'Sent #' + hex; })
       .catch(() => { status.textContent = 'Error sending color'; })
       .finally(() => {
         pending = false;
@@ -32,7 +158,41 @@ R"rawliteral(
       });
   }
 
-  picker.addEventListener('input', () => send(picker.value));
+  function onColorChange() {
+    send(render());
+  }
+
+  function makeDraggable(el, onMove) {
+    let dragging = false;
+    el.addEventListener('pointerdown', e => {
+      dragging = true;
+      el.setPointerCapture(e.pointerId);
+      onMove(e);
+    });
+    el.addEventListener('pointermove', e => {
+      if (dragging) onMove(e);
+    });
+    el.addEventListener('pointerup', () => { dragging = false; });
+    el.addEventListener('pointercancel', () => { dragging = false; });
+  }
+
+  makeDraggable(svBox, e => {
+    const rect = svBox.getBoundingClientRect();
+    const x = clamp(e.clientX - rect.left, 0, rect.width);
+    const y = clamp(e.clientY - rect.top, 0, rect.height);
+    sat = x / rect.width;
+    val = 1 - y / rect.height;
+    onColorChange();
+  });
+
+  makeDraggable(hueBar, e => {
+    const rect = hueBar.getBoundingClientRect();
+    const x = clamp(e.clientX - rect.left, 0, rect.width);
+    hue = (x / rect.width) * 360;
+    onColorChange();
+  });
+
+  render();
 </script>
 </body>
 </html>
