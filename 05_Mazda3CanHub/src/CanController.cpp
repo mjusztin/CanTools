@@ -89,7 +89,8 @@ char* CanController::strToHex(char* str, byte* hexArray, byte* len) {
     byte* ptr = hexArray;
     char* idx;
     for (idx = str; *idx != SEPARATOR && *idx != TERMINATOR; ++idx, ++ptr) {
-        *ptr = (getNum(*idx++) << 4) + getNum(*idx);
+        uint8_t hi = getNum(*idx++);
+        *ptr = (hi << 4) + getNum(*idx);
     }
     *len = ptr - hexArray;
     return idx;

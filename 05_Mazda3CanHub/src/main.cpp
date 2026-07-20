@@ -1,17 +1,20 @@
 #include <Arduino.h>
 #include "CanController.h"
 #include "LedController.h"
+#include "ColorReceiver.h"
 
 #define CAN_SPEED (500E3) // LOW=33E3, MID=95E3, HIGH=500E3
 
-CanController canCtrl;
-LedController ledCtrl;
+CanController  canCtrl;
+LedController  ledCtrl;
+ColorReceiver  colorReceiver;
 
 void setup() {
     Serial.begin(250000);
     while (!Serial);
 
     ledCtrl.begin();
+    colorReceiver.begin();
 
 #if RANDOM_CAN == 1
     randomSeed(12345);
@@ -27,5 +30,7 @@ void setup() {
 
 void loop() {
     canCtrl.update();
+    colorReceiver.update();
+    ledCtrl.setColor(colorReceiver.getColor());
     ledCtrl.update(canCtrl.doors, canCtrl.isDark);
 }

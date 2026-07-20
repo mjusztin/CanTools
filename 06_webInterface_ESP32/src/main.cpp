@@ -11,47 +11,11 @@ WebServer server(80);
 #define ARDUINO_SERIAL    Serial2
 #define ARDUINO_UART_RX   16
 #define ARDUINO_UART_TX   17
-#define ARDUINO_UART_BAUD 115200
+#define ARDUINO_UART_BAUD 9600
 
-const char PAGE[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LED Color</title>
-<style>
-  body { font-family: sans-serif; text-align:center; background:#111; color:#eee; padding-top:40px; }
-  input[type=color] { width:200px; height:120px; border:none; background:none; }
-  #status { margin-top:20px; font-size:14px; color:#8f8; min-height:1.2em; }
-</style>
-</head>
-<body>
-  <h2>Door LED Color</h2>
-  <input type="color" id="picker" value="#ff0000">
-  <div id="status"></div>
-<script>
-  const picker = document.getElementById('picker');
-  const status = document.getElementById('status');
-  let pending = false, queued = null;
-
-  function send(hex) {
-    if (pending) { queued = hex; return; }
-    pending = true;
-    fetch('/setColor?hex=' + hex.substring(1))
-      .then(r => { status.textContent = 'Sent ' + hex; })
-      .catch(() => { status.textContent = 'Error sending color'; })
-      .finally(() => {
-        pending = false;
-        if (queued) { const q = queued; queued = null; send(q); }
-      });
-  }
-
-  picker.addEventListener('input', () => send(picker.value));
-</script>
-</body>
-</html>
-)rawliteral";
+const char PAGE[] =
+#include "index.html"
+;
 
 void handleRoot() {
   server.send(200, "text/html", PAGE);

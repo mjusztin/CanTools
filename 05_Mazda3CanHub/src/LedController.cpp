@@ -1,9 +1,12 @@
 #include "LedController.h"
 
-static const CRGB COLOR_ON  = CRGB(255, 0, 0);
 static const CRGB COLOR_OFF = CRGB::Black;
 
-LedController::LedController() {}
+LedController::LedController() : _color(255, 0, 0) {}
+
+void LedController::setColor(CRGB color) {
+    _color = color;
+}
 
 void LedController::begin() {
     FastLED.addLeds<LED_TYPE, LED_PIN_DRIVER_SIDE,    LED_COLOR_ORDER>(_driverLeds,    LED_COUNT_DRIVER_SIDE_TOTAL);
@@ -14,6 +17,10 @@ void LedController::begin() {
 }
 
 void LedController::update(const DoorState& doors, bool isDark) {
+    unsigned long now = millis();
+    if (now - _lastShowMs < LED_FRAME_INTERVAL_MS) return;
+    _lastShowMs = now;
+
     bool lightsEnabled = doors.any_door_open || doors.doors_recently_closed || isDark;
     if (!lightsEnabled) {
         FastLED.clear();
@@ -53,13 +60,13 @@ void LedController::updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorO
     }
 
     for (int i = 0; i < legSpaceLedCount; i++) {
-        leds[i] = COLOR_ON;
+        leds[i] = _color;
         leds[i].nscale8(legBrightness);
     }
     for (int i = legSpaceLedCount; i < legSpaceLedCount + LED_COUNT_DOOR_INSIDE; i++) {
-        leds[i] = COLOR_ON;
+        leds[i] = _color;
     }
     for (int i = legSpaceLedCount + LED_COUNT_DOOR_INSIDE; i < legSpaceLedCount + LED_COUNT_DOOR_INSIDE + LED_COUNT_UNDER_DOOR; i++) {
-        leds[i] = frontDoorOpen ? COLOR_ON : COLOR_OFF;
+        leds[i] = frontDoorOpen ? _color : COLOR_OFF;
     }
 }

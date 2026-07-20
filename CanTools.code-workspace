@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "05_Mazda3CanHub",
+			"path": "05_Mazda3CanHub"
+		},
+		{
+			"name": "06_webInterface_ESP32",
+			"path": "06_webInterface_ESP32"
+		}
+	],
+	"settings": {}
+}
