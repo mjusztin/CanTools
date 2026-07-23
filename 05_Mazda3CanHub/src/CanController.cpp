@@ -8,6 +8,10 @@ bool CanController::begin(long canSpeed) {
     _instance = this;
 #if RANDOM_CAN == 0
     if (!CAN.begin(canSpeed)) return false;
+    // The currently used CAN lib only exposes one acceptance filter for the MCP, so the used ids are combined
+    // Hardware filter: passes only IDs where (id & 0x35B) == 0x01A.
+    // This covers exactly 0x09A (light sensor) and 0x43E (door state).
+    CAN.filter(0x01A, 0x35B);
     CAN.onReceive(onCANReceive);
 #endif
     return true;
@@ -138,7 +142,7 @@ void CanController::rxCallback() {
 void CanController::filterMessage(uint32_t id, uint8_t* data) {
     switch (id) {
         case 0x09A:
-            isDark = (data[0] == 0x30);
+            isDark = (data[6] & 0x04) != 0;
             break;
         case 0x43E:
             doors.any_door_open = (data[3] == 0x60);

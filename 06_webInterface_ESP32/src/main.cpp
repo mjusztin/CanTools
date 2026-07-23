@@ -9,7 +9,7 @@ WebServer server(80);
 
 // UART link to the LED controller Arduino (see 05_Mazda3CanHub)
 #define ARDUINO_SERIAL    Serial2
-#define ARDUINO_UART_RX   16
+#define ARDUINO_UART_RX   16  //It is unused for now
 #define ARDUINO_UART_TX   17
 #define ARDUINO_UART_BAUD 9600
 
