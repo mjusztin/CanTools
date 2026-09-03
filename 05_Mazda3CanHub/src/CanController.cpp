@@ -1,23 +1,47 @@
 #include "CanController.h"
+#include <SPI.h>
 
 CanController* CanController::_instance = nullptr;
+
+static ACAN2515Tiny gCan(MCP2515_CS, SPI, MCP2515_INT);
+static void canISR() { gCan.isr(); }
 
 CanController::CanController() {}
 
 bool CanController::begin(long canSpeed) {
     _instance = this;
 #if RANDOM_CAN == 0
-    if (!CAN.begin(canSpeed)) return false;
-    // The currently used CAN lib only exposes one acceptance filter for the MCP, so the used ids are combined
-    // Hardware filter: passes only IDs where (id & 0x35B) == 0x01A.
-    // This covers exactly 0x09A (light sensor) and 0x43E (door state).
-    CAN.filter(0x01A, 0x35B);
-    CAN.onReceive(onCANReceive);
+    SPI.begin();
+
+    ACAN2515TinySettings settings(MCP2515_QUARTZ, (uint32_t)canSpeed);
+    // Defaults are 32 RX + 16 TX frames; at 16 bytes per CANMessage that would be
+    // ~768 B of the Nano's 2 KB, on top of FastLED's ~200 B of LED buffers.
+    settings.mReceiveBufferSize  = 8;
+    settings.mTransmitBufferSize = 4;
+
+    // Exact-match on every ID: the mask marks all 11 identifier bits as significant.
+    // The two trailing bytes filter the first two data bytes, 0 = don't care.
+    const ACAN2515Mask rxm0 = standard2515Mask(0x7FF, 0, 0);
+    const ACAN2515AcceptanceFilter filters[] = {
+        {standard2515Filter(0x09A, 0, 0), onLightSensorFrame},
+        {standard2515Filter(0x43E, 0, 0), onDoorFrame},
+    };
+    // Filter-count rule enforced by the library: the single-mask begin() accepts
+    // 1-2 filters, the two-mask overload accepts 3-6. Adding a third ID therefore
+    // means switching to begin(settings, canISR, rxm0, rxm1, filters, count).
+    const uint16_t err = gCan.begin(settings, canISR, rxm0, filters,
+                                    sizeof(filters) / sizeof(filters[0]));
+    if (err != 0) {
+        Serial.print("MCP2515 begin error 0x");
+        Serial.println(err, HEX);
+        return false;
+    }
 #endif
     return true;
 }
 
 void CanController::update() {
+    while (gCan.dispatchReceivedMessage()); // dispatches one frame per call
     rxCallback();
     printDoorChanges();
 #if RANDOM_CAN == 1
@@ -50,33 +74,34 @@ void CanController::CANsimulate() {
 
 //------------------------------------------------------------------------------
 // CAN RX, TX
-void CanController::onCANReceive(int packetSize) {
+void CanController::onLightSensorFrame(const CANMessage& frame) {
     if (!_instance) return;
-    packet_t rxPacket;
-    rxPacket.id  = CAN.packetId();
-    rxPacket.rtr = CAN.packetRtr() ? 1 : 0;
-    rxPacket.ide = CAN.packetExtended() ? 1 : 0;
-    rxPacket.dlc = CAN.packetDlc();
-    byte i = 0;
-    while (CAN.available()) {
-        rxPacket.dataArray[i++] = CAN.read();
-        if (i >= sizeof(rxPacket.dataArray) / sizeof(rxPacket.dataArray[0])) break;
-    }
-    _instance->filterMessage(rxPacket.id, rxPacket.dataArray);
-    //_instance->printPacket(&rxPacket);
+    _instance->isDark = (frame.data[6] & 0x04) != 0;
+}
+
+void CanController::onDoorFrame(const CANMessage& frame) {
+    if (!_instance) return;
+    DoorState& d = _instance->doors;
+    d.any_door_open         = (frame.data[3] == 0x60);
+    d.doors_recently_closed = (frame.data[3] == 0x40);
+    d.driver_front    = (frame.data[4] & 0x20) != 0;
+    d.passenger_front = (frame.data[4] & 0x10) != 0;
+    d.driver_rear     = (frame.data[4] & 0x08) != 0;
+    d.passenger_rear  = (frame.data[4] & 0x04) != 0;
+    d.trunk           = (frame.data[4] & 0x01) != 0;
 }
 
 void CanController::sendPacketToCan(packet_t* packet) {
+    CANMessage frame;
+    frame.id  = packet->id;
+    frame.ext = packet->ide != 0;
+    frame.rtr = packet->rtr != 0;
+    frame.len = packet->dlc > 8 ? 8 : packet->dlc;
+    for (uint8_t i = 0; i < frame.len; i++) {
+        frame.data[i] = packet->dataArray[i];
+    }
     for (int retries = 10; retries > 0; retries--) {
-        bool rtr = packet->rtr ? true : false;
-        if (packet->ide) {
-            CAN.beginExtendedPacket(packet->id, packet->dlc, rtr);
-        } else {
-            CAN.beginPacket(packet->id, packet->dlc, rtr);
-        }
-        CAN.write(packet->dataArray, packet->dlc);
-        if (CAN.endPacket()) break;
-        else if (retries <= 1) return;
+        if (gCan.tryToSend(frame)) return;
     }
 }
 
@@ -134,27 +159,6 @@ void CanController::rxCallback() {
             rxParse(rxBuf, rxPtr);
             rxPtr = 0;
         }
-    }
-}
-
-//------------------------------------------------------------------------------
-// CAN message decoder
-void CanController::filterMessage(uint32_t id, uint8_t* data) {
-    switch (id) {
-        case 0x09A:
-            isDark = (data[6] & 0x04) != 0;
-            break;
-        case 0x43E:
-            doors.any_door_open = (data[3] == 0x60);
-            doors.doors_recently_closed = (data[3] == 0x40);
-            doors.driver_front    = (data[4] & 0x20) != 0;
-            doors.passenger_front = (data[4] & 0x10) != 0;
-            doors.driver_rear     = (data[4] & 0x08) != 0;
-            doors.passenger_rear  = (data[4] & 0x04) != 0;
-            doors.trunk           = (data[4] & 0x01) != 0;
-            break;
-        default:
-            break;
     }
 }
 
