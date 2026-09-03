@@ -13,7 +13,7 @@ bool CanController::begin(long canSpeed) {
 #if RANDOM_CAN == 0
     SPI.begin();
 
-    ACAN2515TinySettings settings(MCP2515_QUARTZ, (uint32_t)canSpeed);
+    ACAN2515TinySettings settings(MCP2515_QUARTZ, static_cast<uint32_t>(canSpeed));
     // Defaults are 32 RX + 16 TX frames; at 16 bytes per CANMessage that would be
     // ~768 B of the Nano's 2 KB, on top of FastLED's ~200 B of LED buffers.
     settings.mReceiveBufferSize  = 8;
@@ -21,15 +21,16 @@ bool CanController::begin(long canSpeed) {
 
     // Exact-match on every ID: the mask marks all 11 identifier bits as significant.
     // The two trailing bytes filter the first two data bytes, 0 = don't care.
+    // rxm0 masks filters 0-1 (hardware buffer RXB0), rxm1 masks filters 2-5 (RXB1).
+    // The library requires 3-6 filters for this two-mask overload, 1-2 for the single-mask one.
     const ACAN2515Mask rxm0 = standard2515Mask(0x7FF, 0, 0);
+    const ACAN2515Mask rxm1 = standard2515Mask(0x7FF, 0, 0);
     const ACAN2515AcceptanceFilter filters[] = {
         {standard2515Filter(0x09A, 0, 0), onLightSensorFrame},
         {standard2515Filter(0x43E, 0, 0), onDoorFrame},
+        {standard2515Filter(0x228, 0, 0), onGearFrame},
     };
-    // Filter-count rule enforced by the library: the single-mask begin() accepts
-    // 1-2 filters, the two-mask overload accepts 3-6. Adding a third ID therefore
-    // means switching to begin(settings, canISR, rxm0, rxm1, filters, count).
-    const uint16_t err = gCan.begin(settings, canISR, rxm0, filters,
+    const uint16_t err = gCan.begin(settings, canISR, rxm0, rxm1, filters,
                                     sizeof(filters) / sizeof(filters[0]));
     if (err != 0) {
         Serial.print("MCP2515 begin error 0x");
@@ -89,6 +90,11 @@ void CanController::onDoorFrame(const CANMessage& frame) {
     d.driver_rear     = (frame.data[4] & 0x08) != 0;
     d.passenger_rear  = (frame.data[4] & 0x04) != 0;
     d.trunk           = (frame.data[4] & 0x01) != 0;
+}
+
+void CanController::onGearFrame(const CANMessage& frame) {
+    if (!_instance) return;
+    _instance->gear = static_cast<Gear>(frame.data[0] & 0x07);
 }
 
 void CanController::sendPacketToCan(packet_t* packet) {

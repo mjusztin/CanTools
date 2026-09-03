@@ -17,6 +17,15 @@ typedef struct {
     byte dataArray[20];
 } packet_t;
 
+// Values match the raw field in 0x228 byte 0, bits 0-2.
+enum Gear : uint8_t {
+    GEAR_UNKNOWN = 0,
+    GEAR_PARK    = 1,
+    GEAR_REVERSE = 2,
+    GEAR_NEUTRAL = 3,
+    GEAR_DRIVE   = 4,
+};
+
 class CanController {
 public:
     CanController();
@@ -25,6 +34,7 @@ public:
 
     DoorState doors;
     bool isDark = false;
+    Gear gear = GEAR_UNKNOWN;
 
 private:
     DoorState _prevDoors;
@@ -49,6 +59,7 @@ private:
     // so these are static and reach the object through _instance.
     static void onLightSensorFrame(const CANMessage& frame);
     static void onDoorFrame(const CANMessage& frame);
+    static void onGearFrame(const CANMessage& frame);
 
     static CanController* _instance;
 };
