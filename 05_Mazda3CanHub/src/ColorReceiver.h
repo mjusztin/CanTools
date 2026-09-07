@@ -5,7 +5,8 @@
 #include <EEPROM.h>
 
 #define ESP_RX_PIN 4  // Arduino RX ← ESP32 TX (GPIO 17)
-#define ESP_TX_PIN 3  // Arduino TX → ESP32 RX (GPIO 16), unused for now
+#define ESP_TX_PIN A0 // Arduino TX → ESP32 RX (GPIO 16), unused for now — SoftwareSerial
+                      // holds this pin HIGH as its idle state, so it cannot share with an H-bridge input
 
 #define COLOR_EEPROM_MAGIC      0xCA
 #define COLOR_EEPROM_ADDR_MAGIC 0

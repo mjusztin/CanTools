@@ -2,6 +2,7 @@
 #include "CanController.h"
 #include "LedController.h"
 #include "ColorReceiver.h"
+#include "MirrorController.h"
 
 #define CAN_SPEED (500E3) // LOW=33E3, MID=95E3, HIGH=500E3
 
@@ -12,6 +13,7 @@ static const CRGB COLOR_DRIVE   = CRGB(255, 0, 0);
 CanController  canCtrl;
 LedController  ledCtrl;
 ColorReceiver  colorReceiver;
+MirrorController mirrorCtrl;
 
 // Park (and any unrecognised gear value) falls back to the EEPROM-stored user color.
 static CRGB colorForGear(Gear gear, const CRGB& storedColor) {
@@ -29,6 +31,7 @@ void setup() {
 
     ledCtrl.begin();
     colorReceiver.begin();
+    mirrorCtrl.begin();
 
 #if RANDOM_CAN == 1
     randomSeed(12345);
@@ -47,4 +50,5 @@ void loop() {
     colorReceiver.update();
     ledCtrl.setColor(colorForGear(canCtrl.gear, colorReceiver.getColor()));
     ledCtrl.update(canCtrl.doors, canCtrl.isDark);
+    mirrorCtrl.update(canCtrl.gear == GEAR_REVERSE);
 }
