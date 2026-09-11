@@ -2,10 +2,38 @@
 
 static const CRGB COLOR_OFF = CRGB::Black;
 
-LedController::LedController() : _color(255, 0, 0) {}
+// Boots in the parked color, so the first setColor() starts no fade.
+// _baseColor is declared first, hence it is initialised before the three that copy it.
+LedController::LedController()
+    : _baseColor(LED_COLOR_PARKED_HSV), _color(_baseColor), _fadeFrom(_baseColor), _targetColor(_baseColor) {}
 
 void LedController::setColor(CRGB color) {
-    _color = color;
+    if (color == _baseColor) return;
+    _baseColor = color;
+    // While a door is open red wins; the new gear color is picked up when the doors close.
+    if (!_doorOverride) startFade(_baseColor, LED_COLOR_FADE_MS);
+}
+
+void LedController::startFade(CRGB target, uint16_t durationMs) {
+    if (target == _targetColor) return;
+    _fadeFrom = _color;   // start from whatever is on the LEDs right now
+    _targetColor = target;
+    _fadeStartMs = millis();
+    _fadeDurationMs = durationMs;
+    _fading = true;
+}
+
+void LedController::stepColorFade(unsigned long now) {
+    if (!_fading) return;
+
+    unsigned long elapsed = now - _fadeStartMs;
+    if (elapsed >= _fadeDurationMs) {
+        _color = _targetColor;
+        _fading = false;
+        return;
+    }
+    fract8 progress = static_cast<fract8>((elapsed * 255UL) / _fadeDurationMs);
+    _color = blend(_fadeFrom, _targetColor, progress);
 }
 
 void LedController::begin() {
@@ -20,6 +48,12 @@ void LedController::update(const DoorState& doors, bool isDark) {
     unsigned long now = millis();
     if (now - _lastShowMs < LED_FRAME_INTERVAL_MS) return;
     _lastShowMs = now;
+
+    if (doors.any_door_open != _doorOverride) {
+        _doorOverride = doors.any_door_open;
+        startFade(_doorOverride ? CRGB(LED_COLOR_DOOR_OPEN_HSV) : _baseColor, LED_DOOR_COLOR_FADE_MS);
+    }
+    stepColorFade(now);
 
     bool lightsEnabled = doors.any_door_open || doors.doors_recently_closed || isDark;
     if (!lightsEnabled) {

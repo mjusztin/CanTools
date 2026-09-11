@@ -1,27 +1,30 @@
 #include <Arduino.h>
 #include "CanController.h"
 #include "LedController.h"
-#include "ColorReceiver.h"
+//#include "ColorReceiver.h"
 #include "MirrorController.h"
 
 #define CAN_SPEED (500E3) // LOW=33E3, MID=95E3, HIGH=500E3
 
-static const CRGB COLOR_REVERSE = CRGB(0, 255, 0);
-static const CRGB COLOR_NEUTRAL = CRGB(255, 255, 0);
-static const CRGB COLOR_DRIVE   = CRGB(255, 0, 0);
+// Gear colors, hue 160 = blue. CHSV is converted to CRGB once at startup.
+static const CRGB COLOR_PARKED  = CRGB(LED_COLOR_PARKED_HSV); // deep, saturated blue, see LedController.h
+static const CRGB COLOR_NEUTRAL = CRGB(CHSV(160, 180, 140)); // in-between
+static const CRGB COLOR_DRIVE   = CRGB(CHSV(160,  90,  90)); // pale, calm blueish white
+static const CRGB COLOR_REVERSE = CRGB(CHSV(160, 255, 255));
 
 CanController  canCtrl;
 LedController  ledCtrl;
-ColorReceiver  colorReceiver;
+//ColorReceiver  colorReceiver;
 MirrorController mirrorCtrl;
 
-// Park (and any unrecognised gear value) falls back to the EEPROM-stored user color.
-static CRGB colorForGear(Gear gear, const CRGB& storedColor) {
+// Park (and any unrecognised gear value) uses the hard-coded parked color.
+// The EEPROM-stored user color (ColorReceiver) is disabled for now.
+static CRGB colorForGear(Gear gear) {
     switch (gear) {
         case GEAR_REVERSE: return COLOR_REVERSE;
         case GEAR_NEUTRAL: return COLOR_NEUTRAL;
         case GEAR_DRIVE:   return COLOR_DRIVE;
-        default:           return storedColor;
+        default:           return COLOR_PARKED;
     }
 }
 
@@ -30,7 +33,7 @@ void setup() {
     while (!Serial);
 
     ledCtrl.begin();
-    colorReceiver.begin();
+    //colorReceiver.begin();
     mirrorCtrl.begin();
 
 #if RANDOM_CAN == 1
@@ -47,8 +50,8 @@ void setup() {
 
 void loop() {
     canCtrl.update();
-    colorReceiver.update();
-    ledCtrl.setColor(colorForGear(canCtrl.gear, colorReceiver.getColor()));
+    //colorReceiver.update();
+    ledCtrl.setColor(colorForGear(canCtrl.gear));
     ledCtrl.update(canCtrl.doors, canCtrl.isDark);
     mirrorCtrl.update(canCtrl.gear == GEAR_REVERSE);
 }
