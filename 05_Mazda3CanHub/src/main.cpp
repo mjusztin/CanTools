@@ -52,6 +52,7 @@ void loop() {
     canCtrl.update();
     //colorReceiver.update();
     ledCtrl.setColor(colorForGear(canCtrl.gear));
+    ledCtrl.setPulse(canCtrl.gear == GEAR_REVERSE);
     ledCtrl.update(canCtrl.doors, canCtrl.isDark);
     mirrorCtrl.update(canCtrl.gear == GEAR_REVERSE);
 }

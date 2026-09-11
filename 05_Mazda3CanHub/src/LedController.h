@@ -27,6 +27,10 @@
 #define LED_COLOR_DOOR_OPEN_HSV CHSV(0, 255, 255)
 #define LED_DOOR_COLOR_FADE_MS  1000
 
+// Reverse gear adds a slow brightness pulse on top of whatever color is shown.
+#define LED_PULSE_PERIOD_MS 3000
+#define LED_PULSE_MIN_SCALE 80 // deepest dip of the pulse, 255 = untouched
+
 // Color the LEDs boot in; also used as the parked-gear color in main.cpp.
 #define LED_COLOR_PARKED_HSV CHSV(160, 220, 200)
 
@@ -40,6 +44,7 @@ public:
     LedController();
     void begin();
     void setColor(CRGB color);
+    void setPulse(bool enabled);
     void update(const DoorState& doors, bool isDark);
 
 private:
@@ -53,6 +58,9 @@ private:
     uint16_t _fadeDurationMs = LED_COLOR_FADE_MS;
     bool _fading = false;
     bool _doorOverride = false; // true while red overrides the gear color
+    bool _pulseEnabled = false; // pulse requested (reverse gear)
+    bool _pulsing = false;      // pulse actually running, outlasts the request by up to one cycle
+    unsigned long _pulseStartMs = 0;
     unsigned long _lastShowMs = 0;
     DoorState _prevDoors;
     SideAnimState _driverAnim;
@@ -60,5 +68,6 @@ private:
 
     void startFade(CRGB target, uint16_t durationMs);
     void stepColorFade(unsigned long now);
-    void updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim);
+    uint8_t stepPulse(unsigned long now);
+    void updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim, const CRGB& color);
 };
