@@ -69,5 +69,5 @@ private:
     void startFade(CRGB target, uint16_t durationMs);
     void stepColorFade(unsigned long now);
     uint8_t stepPulse(unsigned long now);
-    void updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim, const CRGB& color);
+    void updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim);
 };

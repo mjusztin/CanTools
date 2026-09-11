@@ -46,7 +46,8 @@ void LedController::stepColorFade(unsigned long now) {
     _color = blend(_fadeFrom, _targetColor, progress);
 }
 
-// Returns the brightness scale for this frame: 255 while no pulse is running.
+// Brightness scale for this frame: 255 whenever no pulse is running, so a disabled
+// pulse leaves the LEDs exactly as bright as they were before the pulse existed.
 uint8_t LedController::stepPulse(unsigned long now) {
     if (!_pulsing) return 255;
 
@@ -60,15 +61,17 @@ uint8_t LedController::stepPulse(unsigned long now) {
         }
     }
 
-    uint8_t theta = static_cast<uint8_t>((elapsed * 255UL) / LED_PULSE_PERIOD_MS);
-    uint16_t depth = static_cast<uint16_t>(cos8(theta)) * (255 - LED_PULSE_MIN_SCALE);
-    return LED_PULSE_MIN_SCALE + static_cast<uint8_t>(depth / 255);
+    // Triangle wave: full at the cycle edges, LED_PULSE_MIN_SCALE at the half point.
+    const unsigned long halfMs = LED_PULSE_PERIOD_MS / 2;
+    unsigned long fromDip = (elapsed < halfMs) ? (halfMs - elapsed) : (elapsed - halfMs);
+    return LED_PULSE_MIN_SCALE + static_cast<uint8_t>((fromDip * (255UL - LED_PULSE_MIN_SCALE)) / halfMs);
 }
 
 void LedController::begin() {
     FastLED.addLeds<LED_TYPE, LED_PIN_DRIVER_SIDE,    LED_COLOR_ORDER>(_driverLeds,    LED_COUNT_DRIVER_SIDE_TOTAL);
     FastLED.addLeds<LED_TYPE, LED_PIN_PASSENGER_SIDE, LED_COLOR_ORDER>(_passengerLeds, LED_COUNT_PASSENGER_SIDE_TOTAL);
     FastLED.setBrightness(LED_BRIGHTNESS);
+    FastLED.setDither(DISABLE_DITHER); // the pulse lowers brightness; dithering would shimmer
     FastLED.clear();
     FastLED.show();
 }
@@ -103,15 +106,13 @@ void LedController::update(const DoorState& doors, bool isDark) {
     }
     _prevDoors = doors;
 
-    CRGB frameColor = _color;
-    if (pulseScale != 255) frameColor.nscale8(pulseScale);
-
-    updateSide(_driverLeds,    LED_COUNT_DRIVER_SIDE_LEG_SPACE,    doors.driver_front, _driverAnim, frameColor);
-    updateSide(_passengerLeds, LED_COUNT_PASSENGER_SIDE_LEG_SPACE, doors.passenger_front, _passengerAnim, frameColor);
+    updateSide(_driverLeds,    LED_COUNT_DRIVER_SIDE_LEG_SPACE,    doors.driver_front, _driverAnim);
+    updateSide(_passengerLeds, LED_COUNT_PASSENGER_SIDE_LEG_SPACE, doors.passenger_front, _passengerAnim);
+    FastLED.setBrightness(static_cast<uint8_t>((static_cast<uint16_t>(LED_BRIGHTNESS) * pulseScale) / 255));
     FastLED.show();
 }
 
-void LedController::updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim, const CRGB& color) {
+void LedController::updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorOpen, SideAnimState& anim) {
     uint8_t legBrightness = 255;
 
     if (anim.active) {
@@ -127,13 +128,13 @@ void LedController::updateSide(CRGB* leds, int legSpaceLedCount, bool frontDoorO
     }
 
     for (int i = 0; i < legSpaceLedCount; i++) {
-        leds[i] = color;
+        leds[i] = _color;
         leds[i].nscale8(legBrightness);
     }
     for (int i = legSpaceLedCount; i < legSpaceLedCount + LED_COUNT_DOOR_INSIDE; i++) {
-        leds[i] = color;
+        leds[i] = _color;
     }
     for (int i = legSpaceLedCount + LED_COUNT_DOOR_INSIDE; i < legSpaceLedCount + LED_COUNT_DOOR_INSIDE + LED_COUNT_UNDER_DOOR; i++) {
-        leds[i] = frontDoorOpen ? color : COLOR_OFF;
+        leds[i] = frontDoorOpen ? _color : COLOR_OFF;
     }
 }
