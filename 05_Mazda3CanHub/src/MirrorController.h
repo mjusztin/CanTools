@@ -6,10 +6,11 @@
 #define MIRROR_RIGHT_PIN_1  8
 #define MIRROR_RIGHT_PIN_2  9
 
-// TODO For now these two defines depend on each other, as the trigger must be more than the move
-// else edge cases could happen when the mirror starts moving but the user already shifted away, triggering the back move command too soon
-#define MIRROR_TRIGGER_MS 2000  // how long the gear condition must hold before moving
-#define MIRROR_MOVE_MS    1500  // motor pulse length
+// A move pulse always runs to completion, so a trigger shorter than the move never cuts it short:
+// if the gear flips back mid-move, the opposite move starts once the current one has finished. (At least in theory...)
+#define MIRROR_DOWN_TRIGGER_MS 2000  // how long reverse must hold before tilting down
+#define MIRROR_UP_TRIGGER_MS   3500  // how long any other gear must hold before tilting back up
+#define MIRROR_MOVE_MS         3000  // motor pulse length
 
 class MirrorController {
 public:

@@ -21,8 +21,9 @@ void MirrorController::update(bool inReverse) {
     }
 
     // Only a condition held for the full trigger time sets a new target,
-    // so a brief shift through reverse never moves the mirrors.
-    if (now - _conditionSinceMs >= MIRROR_TRIGGER_MS) {
+    // so a brief shift into or out of reverse never moves the mirrors.
+    unsigned long triggerMs = _inReverse ? MIRROR_DOWN_TRIGGER_MS : MIRROR_UP_TRIGGER_MS;
+    if (now - _conditionSinceMs >= triggerMs) {
         _desired = _inReverse ? POS_DOWN : POS_UP;
     }
 

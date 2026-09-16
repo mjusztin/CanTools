@@ -32,7 +32,7 @@
 #define LED_PULSE_MIN_SCALE 80 // deepest dip of the pulse, 255 = untouched
 
 // Color the LEDs boot in; also used as the parked-gear color in main.cpp.
-#define LED_COLOR_PARKED_HSV CHSV(160, 220, 200)
+#define LED_COLOR_PARKED_HSV CHSV(160,  90,  90)
 
 struct SideAnimState {
     bool active = false;
